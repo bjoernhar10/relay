@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Generated native projects (Continuous Native Generation)
+/ios
+/android
+.kotlin/
+
+# Signing material and credentials
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# Environment files: API keys belong in SecureStore, never in the repo
+.env
+.env.*
+!.env.example
+
+# Metro
+.metro-health-check*
+
+# Tests and TypeScript
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Editors and OS
+.idea/
+.DS_Store
+*.orig.*
+
+# Local Claude Code settings
+.claude/settings.local.json
