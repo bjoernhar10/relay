@@ -1,82 +1,82 @@
 # Relay
 
-Eine KI-Chat-App für iOS und Android, die mit den Modellen deiner Wahl spricht: OpenAI, Anthropic, DeepSeek, Kimi, GLM, Mistral und weitere Anbieter, jeweils mit deinem eigenen API-Key. Chats und Gedächtnis synchronisieren über ein selbst gehostetes PocketBase.
+A chat app for iOS and Android that talks to the models you choose: OpenAI, Anthropic, DeepSeek, Kimi, GLM, Mistral and other providers, each with your own API key. Chats and memory sync through a self-hosted PocketBase.
 
 [![Expo SDK 58](https://img.shields.io/badge/Expo-SDK%2058-000020?logo=expo&logoColor=white)](https://docs.expo.dev/)
 [![React Native 0.88](https://img.shields.io/badge/React%20Native-0.88-20232a?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
-> **Status:** frühe Entwicklung. Die Oberfläche steht, Modellanfragen und Sync laufen noch über Dummy-Daten.
+> **Status:** early development. The interface is in place; model requests and sync still run on dummy data.
 
-## Idee
+## Principles
 
-- **Eigene Keys, direkte Verbindung.** Anfragen gehen von der App direkt zum Anbieter, nie über einen Server dazwischen. API-Keys liegen ausschließlich im SecureStore des Geräts.
-- **Ein Interface, viele Anbieter.** Zwei Adapter decken fast alles ab: OpenAI-kompatibel und Anthropic. Modelle werden nicht hart codiert.
-- **Offline zuerst.** Die UI liest immer aus einer lokalen SQLite-Datenbank, der Sync mit PocketBase läuft im Hintergrund.
-- **Ruhiges Design.** Neutrale Grautöne, eine Akzentfarbe, Systemschrift, kurze und funktionale Animationen. Hell und Dunkel.
+- **Your keys, direct connection.** Requests go straight from the app to the provider, never through a server in between. API keys live only in the device's secure store.
+- **One interface, many providers.** Two adapters cover almost everything: OpenAI-compatible and Anthropic. Model names are never hardcoded.
+- **Offline first.** The UI always reads from a local SQLite database; syncing with PocketBase happens in the background.
+- **Calm design.** Neutral grays, a single accent color, the system font, short and functional animations. Light and dark mode.
 
-## Was es schon gibt
+## What works today
 
-- Chat mit Markdown: Codeblöcke mit Syntax-Highlighting und Kopieren, Tabellen, Listen, Zitate
-- Composer, der bis sechs Zeilen mitwächst, sauberes Keyboard-Handling auf iOS und Android, Haptics
-- Simulierte, gestreamte Antworten mit Stop, Auto-Scroll und „nach unten“-Button
-- Modell-Picker als Bottom-Sheet: Favoriten, Gruppen nach Anbieter, Suche
-- Drawer mit Chatliste nach Heute, Gestern, Letzte 7 Tage und Älter
-- Deutsch und Englisch, folgt der Gerätesprache
+- Chat with Markdown: code blocks with syntax highlighting and copy, tables, lists, quotes
+- A composer that grows up to six lines, clean keyboard handling on iOS and Android, haptics
+- Simulated streaming replies with stop, auto-scroll and a scroll-to-bottom button
+- Model picker as a bottom sheet: favorites, groups by provider, search
+- Drawer with chats grouped into today, yesterday, previous 7 days and older
+- German and English, following the device language
 
-Was als Nächstes kommt, steht in [`docs/PROGRESS.md`](docs/PROGRESS.md).
+Upcoming work is tracked in [`docs/PROGRESS.md`](docs/PROGRESS.md) (German).
 
-## Loslegen
+## Getting started
 
-Voraussetzungen: Node.js 22 oder neuer und die App [Expo Go](https://expo.dev/go) auf dem Handy.
+Requirements: Node.js 22 or newer and the [Expo Go](https://expo.dev/go) app on your phone.
 
 ```bash
 npm install
 npx expo start
 ```
 
-QR-Code mit Expo Go scannen (Handy und Rechner im selben WLAN). Alternativ in Expo Go „Enter URL manually“ mit der angezeigten `exp://`-Adresse.
+Scan the QR code with Expo Go (phone and computer on the same network), or use "Enter URL manually" in Expo Go with the `exp://` address shown in the terminal.
 
-Für native Module, die Expo Go nicht mitbringt, gibt es einen Development Build:
+For native modules that Expo Go does not include, use a development build:
 
 ```bash
-npx expo run:ios      # macOS mit Xcode
+npx expo run:ios      # macOS with Xcode
 npx expo run:android  # Android SDK
 ```
 
-## Skripte
+## Scripts
 
-| Befehl | Zweck |
+| Command | Purpose |
 | --- | --- |
-| `npm start` | Dev-Server starten |
-| `npm test` | Jest mit React Native Testing Library |
+| `npm start` | Start the dev server |
+| `npm test` | Jest with React Native Testing Library |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint (Expo-Konfiguration und Prettier) |
-| `npm run format` | Prettier über das ganze Projekt |
+| `npm run lint` | ESLint (Expo config with Prettier) |
+| `npm run format` | Prettier across the project |
 
-## Aufbau
+## Project structure
 
 ```
-app/                 Screens (expo-router): Drawer, Chat, Einstellungen
+app/                 Screens (expo-router): drawer, chat, settings
 src/
   components/        UI: chat, composer, markdown, model-picker, drawer
-  theme/             Farben, Abstände, Radien, Typografie, Bewegung
-  store/             Zustand-Stores (Theme, ausgewähltes Modell)
-  i18n/              Übersetzungen de und en
-  providers/         Provider-Adapter (folgt)
-  db/  sync/         SQLite-Cache und PocketBase-Sync (folgt)
-  memory/            Gedächtnis (folgt)
-backend/             PocketBase: Migrations, docker-compose, Setup (folgt)
-docs/                Spezifikation und Fortschritt
+  theme/             Colors, spacing, radii, typography, motion
+  store/             Zustand stores (theme, selected model)
+  i18n/              Translations (de, en)
+  providers/         Provider adapters (planned)
+  db/  sync/         SQLite cache and PocketBase sync (planned)
+  memory/            Memory (planned)
+backend/             PocketBase migrations, docker-compose, setup (planned)
+docs/                Specification and progress log
 ```
 
 ## Stack
 
 Expo, React Native, TypeScript, expo-router, Zustand, FlashList, Reanimated, react-native-keyboard-controller, @gorhom/bottom-sheet, marked, Prism, Lucide.
 
-Geplant: TanStack Query, expo-sqlite, expo-secure-store und als Backend PocketBase auf einem Raspberry Pi 5.
+Planned: TanStack Query, expo-sqlite, expo-secure-store, and PocketBase on a Raspberry Pi 5 as the backend.
 
-## Lizenz
+## License
 
 [MIT](LICENSE)
