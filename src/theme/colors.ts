@@ -20,6 +20,7 @@ export type ThemeColors = {
   textTertiary: string;
   accent: string;
   onAccent: string;
+  danger: string;
   syntax: SyntaxColors;
 };
 
@@ -38,6 +39,7 @@ export const colors: Record<ColorScheme, ThemeColors> = {
     textTertiary: '#8F8F8F',
     accent: '#2F6F62',
     onAccent: '#FFFFFF',
+    danger: '#B4402F',
     syntax: {
       keyword: '#9B3D63',
       string: '#2F6F3A',
@@ -58,6 +60,7 @@ export const colors: Record<ColorScheme, ThemeColors> = {
     textTertiary: '#737373',
     accent: '#5BA593',
     onAccent: '#10201C',
+    danger: '#E07A6A',
     syntax: {
       keyword: '#D98BA8',
       string: '#8DC28F',

@@ -53,7 +53,10 @@ export default function RootLayout() {
             >
               <Drawer.Screen name="index" options={chatScreenOptions} />
               <Drawer.Screen name="chat/[id]" options={chatScreenOptions} />
-              <Drawer.Screen name="settings" options={{ title: t('settings.title') }} />
+              <Drawer.Screen
+                name="settings"
+                options={{ headerShown: false, swipeEnabled: false }}
+              />
             </Drawer>
             <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
           </ThemeProvider>

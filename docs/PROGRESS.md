@@ -103,3 +103,36 @@
 
 - `npx expo start` (läuft der Server schon, in Expo Go neu laden), hell und dunkel durchklicken: leerer Chat, Senden und Stop, Drawer mit geöffnetem Chat, Modell-Picker
 - `npm test`: zusätzlich aktiver Chat im Drawer und Vorschlagskarten
+
+## Schritt 6: Anbieter verwalten
+
+**Neu**
+
+- `docs/SPEC.md` als Entwurf angelegt (gab es noch nicht). Abschnitt 2 legt Anbieter, Protokolle, Typen, Presets und Speicherung fest.
+- `src/providers/types.ts`: `ProviderProtocol`, `ProviderPreset`, `ProviderConfig`, `ModelInfo`
+- `src/providers/presets.ts`: 10 Presets (OpenAI, Anthropic, DeepSeek, Kimi, GLM/Z.ai, Mistral, Gemini, OpenRouter, Groq, xAI). Base-URLs am 17.11.2026 mit der Doku abgeglichen. Konvention: Die Base-URL enthält das Versionssegment, Adapter hängen nur `/chat/completions`, `/messages` oder `/models` an.
+- API-Key ausschließlich in `expo-secure-store` (`relay.provider-key.<id>`, `src/providers/api-key-store.ts`). Config ohne Key in `src/store/provider-store.ts`, Zustand-persist auf `expo-sqlite/kv-store` (`relay.providers`). Die Config merkt sich nur `hasApiKey`.
+- Einstellungen als eigener Stack (`app/settings/`): Übersicht → Anbieter → Hinzufügen (Vorlage oder eigener Anbieter) → Formular mit Name, Base-URL, Protokoll, API-Key. Bearbeiten (Key wird nie angezeigt, leer lassen behält ihn, „Key entfernen“ löscht ihn), Löschen mit Bestätigung (löscht auch den Key).
+- Neue Bausteine: `TextField`, `SegmentedControl`, `Button`, `SettingsRow`, `DrawerMenuButton`, Farbe `danger` für Löschen und Fehler
+- Noch keine API-Aufrufe, der Modell-Picker nutzt weiter Dummy-Daten.
+
+**Testen**
+
+- `npx expo start`, Drawer → Einstellungen → Anbieter → „+“: Vorlage wählen, Key eintragen, sichern. Liste zeigt Host und ggf. „Kein API-Key“. App neu starten: Anbieter sind noch da.
+- Bearbeiten: Key-Feld bleibt leer mit Hinweis „Gespeichert“, „Key entfernen“ und Sichern entfernt ihn. Löschen fragt nach.
+- `npm test`: Validierung, Presets (gültige https-URLs), Speichern/Bearbeiten/Löschen inkl. Prüfung, dass der Key nie im persistierten Store landet, Formular-Verhalten
+
+## Schritt 7: OpenAI-kompatibler Adapter
+
+**Neu**
+
+- `src/providers/adapter.ts`: `ProviderAdapter` mit `listModels()` und `streamChat()` (AsyncIterable aus `text`-, `reasoning`- und genau einem `done`-Chunk). In `docs/SPEC.md` Abschnitt 3 dokumentiert.
+- `src/providers/openai-compatible.ts`: `GET /models` (inkl. `name`/`context_length` wo vorhanden), `POST /chat/completions` mit `stream: true`. `reasoning_content` (DeepSeek, Kimi, GLM) und `reasoning` (OpenRouter, Groq) kommen als eigener `reasoning`-Chunk. Fehler im Stream werden geworfen, fehlendes `[DONE]` wird toleriert.
+- `src/providers/sse-parser.ts` + `sse-stream.ts`: eigener SSE-Parser (Zeilenenden über Chunk-Grenzen, `\r\n`/`\r`, Keepalive-Kommentare, mehrzeilige Daten, BOM, letztes Event ohne Leerzeile). Dekodierung mit `TextDecoder` im Stream-Modus, vorzeitiges Beenden schließt die Verbindung.
+- `src/providers/http.ts`: Requests über `expo/fetch` (streamt auf iOS/Android), `fetch` für Tests injizierbar. `json.ts`: typsicheres Lesen ohne `any`.
+- `src/providers/provider-error.ts`: `ProviderError` mit Arten für 401, 402/Kontingent, 403, 404, 429 (inkl. `Retry-After`), 400/413/422, 5xx, Netzwerk, Abbruch und unlesbare Antworten. `provider-error-message.ts` liefert die Meldungen auf Deutsch und Englisch.
+- Noch nicht an die UI angeschlossen.
+
+**Testen**
+
+- `npm test`: SSE-Parser (u. a. jede Trennstelle eines Streams, Zeichen für Zeichen, `\r\n` über Chunk-Grenzen), UTF-8 über Chunk-Grenzen, Fehler-Mapping und Meldungen, Adapter gegen ein simuliertes `fetch` (Modelle, Streaming mit Reasoning, Usage, Fehler im Stream, 401/429, Netzwerk, Abbruch)
