@@ -1,41 +1,89 @@
-import type { Model, ModelProvider } from '../model';
-import { buildModelSections } from '../model-sections';
+import { buildModelSections, type ProviderModels } from '../model-sections';
 
-const providers: ModelProvider[] = [
-  { id: 'alpha', name: 'Alpha AI' },
-  { id: 'beta', name: 'Beta Labs' },
-  { id: 'empty', name: 'Empty' },
-];
-
-const models: Model[] = [
-  { id: 'alpha/fast', label: 'alpha-fast', providerId: 'alpha' },
-  { id: 'alpha/large', label: 'alpha-large', providerId: 'alpha' },
-  { id: 'beta/chat', label: 'beta-chat', providerId: 'beta' },
-];
-
-const catalog = { providers, models, favoriteModelIds: ['beta/chat', 'missing/model'] };
+const alpha: ProviderModels = {
+  providerId: 'alpha',
+  providerName: 'Alpha AI',
+  status: 'ready',
+  models: [
+    { id: 'alpha-large', providerId: 'alpha', displayName: 'Alpha Large', source: 'api' },
+    { id: 'alpha-fast', providerId: 'alpha', source: 'api' },
+  ],
+};
+const beta: ProviderModels = {
+  providerId: 'beta',
+  providerName: 'Beta',
+  status: 'loading',
+  models: [],
+};
 
 function summarize(sections: ReturnType<typeof buildModelSections>) {
-  return sections.map((section) => [section.key, section.data.map((model) => model.id)]);
+  return sections.map((section) => [section.key, section.data.map((model) => model.label)]);
 }
 
 describe('buildModelSections', () => {
-  it('puts favorites first and groups the rest by provider', () => {
-    expect(summarize(buildModelSections(catalog, ''))).toEqual([
-      ['favorites', ['beta/chat']],
-      ['alpha', ['alpha/fast', 'alpha/large']],
-      ['beta', ['beta/chat']],
+  it('lists favorites first, then every provider with API and manual models', () => {
+    const sections = buildModelSections(
+      {
+        providers: [alpha, beta],
+        manualModels: { alpha: ['alpha-preview', 'alpha-fast'], beta: ['beta-1'] },
+        favorites: [
+          { providerId: 'beta', modelId: 'beta-1' },
+          { providerId: 'alpha', modelId: 'alpha-large' },
+        ],
+      },
+      '',
+    );
+
+    expect(summarize(sections)).toEqual([
+      ['favorites', ['beta-1', 'Alpha Large']],
+      ['alpha', ['Alpha Large', 'alpha-fast', 'alpha-preview']],
+      ['beta', ['beta-1']],
     ]);
+    const alphaSection = sections[1];
+    expect(
+      alphaSection?.data.map((model) => [model.modelId, model.isManual, model.isFavorite]),
+    ).toEqual([
+      ['alpha-large', false, true],
+      ['alpha-fast', false, false],
+      ['alpha-preview', true, false],
+    ]);
+    expect(sections[2]).toMatchObject({ kind: 'provider', status: 'loading' });
   });
 
-  it('filters by model and provider name and drops favorites while searching', () => {
-    expect(summarize(buildModelSections(catalog, '  LARGE '))).toEqual([
-      ['alpha', ['alpha/large']],
-    ]);
-    expect(summarize(buildModelSections(catalog, 'beta labs'))).toEqual([['beta', ['beta/chat']]]);
+  it('keeps a favorite visible by its ID while its provider is still loading', () => {
+    const sections = buildModelSections(
+      {
+        providers: [beta],
+        manualModels: {},
+        favorites: [{ providerId: 'beta', modelId: 'beta-x' }],
+      },
+      '',
+    );
+    expect(sections[0]?.data[0]).toMatchObject({
+      label: 'beta-x',
+      providerName: 'Beta',
+      isFavorite: true,
+    });
   });
 
-  it('returns no sections when nothing matches', () => {
-    expect(buildModelSections(catalog, 'xyz')).toEqual([]);
+  it('drops favorites of removed providers', () => {
+    const sections = buildModelSections(
+      { providers: [alpha], manualModels: {}, favorites: [{ providerId: 'gone', modelId: 'x' }] },
+      '',
+    );
+    expect(sections.map((section) => section.key)).toEqual(['alpha']);
+  });
+
+  it('searches labels, IDs and provider names and hides favorites and empty providers', () => {
+    const catalog = {
+      providers: [alpha, beta],
+      manualModels: {},
+      favorites: [{ providerId: 'alpha', modelId: 'alpha-fast' }],
+    };
+    expect(summarize(buildModelSections(catalog, ' LARGE '))).toEqual([['alpha', ['Alpha Large']]]);
+    expect(summarize(buildModelSections(catalog, 'alpha ai'))).toEqual([
+      ['alpha', ['Alpha Large', 'alpha-fast']],
+    ]);
+    expect(buildModelSections(catalog, 'nothing')).toEqual([]);
   });
 });

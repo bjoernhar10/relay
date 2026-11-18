@@ -24,6 +24,8 @@ type MessageListProps = {
   composerHeight: SharedValue<number>;
   onEndVisibleChange: (visible: boolean) => void;
   isSentInSession: (messageId: string) => boolean;
+  isResponding: boolean;
+  onRegenerate: (messageId: string) => void;
 };
 
 export function MessageList({
@@ -32,6 +34,8 @@ export function MessageList({
   composerHeight,
   onEndVisibleChange,
   isSentInSession,
+  isResponding,
+  onRegenerate,
 }: MessageListProps) {
   const { motion } = useTheme();
   const styles = useStyles();
@@ -74,9 +78,9 @@ export function MessageList({
             <UserMessage content={item.content} />
           ) : (
             <AssistantMessage
-              content={item.content}
-              modelLabel={item.modelLabel}
-              isStreaming={item.status === 'streaming'}
+              message={item}
+              canRegenerate={!isResponding}
+              onRegenerate={() => onRegenerate(item.id)}
             />
           )}
         </Animated.View>

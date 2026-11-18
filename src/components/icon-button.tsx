@@ -9,6 +9,7 @@ type IconButtonProps = {
   onPress?: () => void;
   size?: 'sm' | 'md';
   color?: ColorToken;
+  filled?: boolean;
 };
 
 export function IconButton({
@@ -17,6 +18,7 @@ export function IconButton({
   onPress,
   size = 'md',
   color = 'textPrimary',
+  filled = false,
 }: IconButtonProps) {
   const { spacing } = useTheme();
   const styles = useStyles();
@@ -31,7 +33,7 @@ export function IconButton({
         pressed && styles.pressed,
       ]}
     >
-      <Icon name={icon} size={size} color={color} />
+      <Icon name={icon} size={size} color={color} filled={filled} />
     </Pressable>
   );
 }

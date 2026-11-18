@@ -21,6 +21,7 @@ export default function SettingsScreen() {
         hint={providerCount > 0 ? t('providers.count', { count: providerCount }) : undefined}
         onPress={() => router.push('/settings/providers')}
       />
+      <SettingsRow label={t('settings.archive')} onPress={() => router.push('/settings/archive')} />
     </ScrollView>
   );
 }

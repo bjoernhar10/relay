@@ -1,3 +1,4 @@
+import { useModelStore } from '@/store/model-store';
 import { useProviderStore } from '@/store/provider-store';
 
 import { deleteApiKey, saveApiKey } from './api-key-store';
@@ -43,4 +44,5 @@ export async function saveProvider({
 export async function deleteProvider(providerId: string): Promise<void> {
   await deleteApiKey(providerId);
   useProviderStore.getState().removeProvider(providerId);
+  useModelStore.getState().forgetProvider(providerId);
 }

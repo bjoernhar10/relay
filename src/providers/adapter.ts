@@ -10,8 +10,8 @@ export type ChatRequestMessage = {
 export type StreamChatRequest = {
   model: string;
   messages: ChatRequestMessage[];
-  temperature?: number;
-  maxTokens?: number;
+  // Details from the provider's model list, if known; adapters fall back to safe defaults.
+  modelInfo?: ModelInfo;
   signal?: AbortSignal;
 };
 

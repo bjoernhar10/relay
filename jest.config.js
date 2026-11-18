@@ -6,6 +6,7 @@ const [nodeModulesPattern, ...otherIgnorePatterns] = expoPreset.transformIgnoreP
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  clearMocks: true,
   resolver: 'react-native-reanimated/jest/resolver',
   transform: {
     ...expoPreset.transform,
@@ -18,5 +19,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/assets/(.*)$': '<rootDir>/assets/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@test-utils/(.*)$': '<rootDir>/test-utils/$1',
   },
 };

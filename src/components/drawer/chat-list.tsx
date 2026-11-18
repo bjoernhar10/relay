@@ -12,9 +12,17 @@ type ChatListProps = {
   sections: ChatSection[];
   activeChatId?: string;
   onSelectChat: (chat: ChatSummary) => void;
+  onOpenChatMenu?: (chat: ChatSummary) => void;
+  emptyText?: string;
 };
 
-export function ChatList({ sections, activeChatId, onSelectChat }: ChatListProps) {
+export function ChatList({
+  sections,
+  activeChatId,
+  onSelectChat,
+  onOpenChatMenu,
+  emptyText,
+}: ChatListProps) {
   const { t } = useTranslation();
   const styles = useStyles();
   return (
@@ -31,8 +39,16 @@ export function ChatList({ sections, activeChatId, onSelectChat }: ChatListProps
           label={item.title}
           active={item.id === activeChatId}
           onPress={() => onSelectChat(item)}
+          onLongPress={onOpenChatMenu ? () => onOpenChatMenu(item) : undefined}
         />
       )}
+      ListEmptyComponent={
+        emptyText ? (
+          <AppText color="textTertiary" style={styles.empty}>
+            {emptyText}
+          </AppText>
+        ) : undefined
+      }
       stickySectionHeadersEnabled={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.content}
@@ -43,6 +59,10 @@ export function ChatList({ sections, activeChatId, onSelectChat }: ChatListProps
 const useStyles = makeStyles(({ spacing }) => ({
   content: {
     paddingBottom: spacing.lg,
+  },
+  empty: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xl,
   },
   sectionHeader: {
     paddingHorizontal: spacing.md,

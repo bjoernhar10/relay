@@ -2,6 +2,7 @@ import type { TranslationResources } from './en';
 
 export const de: TranslationResources = {
   common: {
+    retry: 'Erneut versuchen',
     cancel: 'Abbrechen',
     appName: 'Relay',
     copy: 'Kopieren',
@@ -11,17 +12,26 @@ export const de: TranslationResources = {
     openMenu: 'Menü öffnen',
   },
   drawer: {
+    noChats: 'Noch keine Chats',
+    noResults: 'Keine Treffer',
     search: 'Suchen',
     newChat: 'Neuer Chat',
     settings: 'Einstellungen',
   },
   chatGroups: {
+    pinned: 'Angepinnt',
     today: 'Heute',
     yesterday: 'Gestern',
     last7Days: 'Letzte 7 Tage',
     older: 'Älter',
   },
   chat: {
+    chooseModel: 'Modell wählen',
+    noModelSelected: 'Wähle oben zuerst ein Modell aus.',
+    reasoning: 'Gedankengang',
+    thinking: 'Denkt nach …',
+    showReasoning: 'Gedankengang anzeigen',
+    hideReasoning: 'Gedankengang ausblenden',
     newChat: 'Neuer Chat',
     selectModel: 'Modell wählen',
     regenerate: 'Neu generieren',
@@ -55,6 +65,19 @@ export const de: TranslationResources = {
     },
   },
   modelPicker: {
+    addFavorite: 'Zu Favoriten hinzufügen',
+    removeFavorite: 'Aus Favoriten entfernen',
+    addModel: 'Modell-ID hinzufügen',
+    addModelFor: 'Modell-ID für {{provider}} hinzufügen',
+    modelIdPlaceholder: 'Modell-ID',
+    confirmAddModel: 'Hinzufügen',
+    manual: 'Manuell hinzugefügt',
+    loading: 'Modelle werden geladen',
+    noModels: 'Dieser Anbieter liefert keine Modelle.',
+    noProvidersTitle: 'Noch keine Anbieter',
+    noProvidersHint:
+      'Richte einen Anbieter mit deinem API-Key ein, dann erscheinen hier seine Modelle.',
+    setUpProvider: 'Anbieter einrichten',
     search: 'Modell suchen',
     favorites: 'Favoriten',
     noResults: 'Keine Modelle gefunden',
@@ -77,7 +100,24 @@ export const de: TranslationResources = {
   markdown: {
     copyCode: 'Code kopieren',
   },
+  chatActions: {
+    rename: 'Umbenennen',
+    pin: 'Anpinnen',
+    unpin: 'Nicht mehr anpinnen',
+    archive: 'Archivieren',
+    unarchive: 'Wiederherstellen',
+    delete: 'Löschen',
+    titleLabel: 'Titel',
+    save: 'Sichern',
+    deleteConfirmTitle: 'Chat löschen?',
+    deleteConfirmMessage: '„{{title}}“ wird mit allen Nachrichten von diesem Gerät gelöscht.',
+  },
+  archive: {
+    title: 'Archiv',
+    empty: 'Keine archivierten Chats',
+  },
   settings: {
+    archive: 'Archiv',
     title: 'Einstellungen',
     providers: 'Anbieter',
   },
@@ -98,6 +138,10 @@ export const de: TranslationResources = {
       anthropic: 'Anthropic',
     },
     form: {
+      testKey: 'Key testen',
+      testing: 'Wird getestet …',
+      testSuccess_one: 'Verbunden, {{count}} Modell gefunden',
+      testSuccess_other: 'Verbunden, {{count}} Modelle gefunden',
       newTitle: 'Neuer Anbieter',
       editTitle: 'Anbieter bearbeiten',
       name: 'Name',

@@ -15,16 +15,19 @@ import type { ChatMessage } from './chat-message';
 import { EmptyChat } from './empty-chat';
 import { MessageList } from './message-list';
 import { ScrollToBottomButton } from './scroll-to-bottom-button';
-import { useChatSession } from './use-chat-session';
+import { regenerateReply, sendMessage, stopReply, wasSentInSession } from './chat-engine';
+import { useConversationMessages } from './use-conversation-messages';
 
 type ChatViewProps = {
-  initialMessages: ChatMessage[];
+  conversationId: string | null;
+  // Called after the first message of a new chat has created its conversation.
+  onConversationCreated?: (conversationId: string) => void;
 };
 
-export function ChatView({ initialMessages }: ChatViewProps) {
+export function ChatView({ conversationId, onConversationCreated }: ChatViewProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const { messages, isResponding, send, stop, isSentInSession } = useChatSession(initialMessages);
+  const { messages, isLoading, isResponding } = useConversationMessages(conversationId);
   const listRef = useRef<FlashListRef<ChatMessage>>(null);
   const composerHeight = useSharedValue(0);
   const [isEndVisible, setIsEndVisible] = useState(true);
@@ -37,9 +40,18 @@ export function ChatView({ initialMessages }: ChatViewProps) {
 
   const scrollToBottom = () => listRef.current?.scrollToEnd({ animated: true });
 
-  const handleSend = (text: string) => {
-    send(text);
+  const handleSend = async (text: string) => {
+    const { conversationId: savedId } = await sendMessage(conversationId, text);
+    if (!conversationId) onConversationCreated?.(savedId);
     requestAnimationFrame(scrollToBottom);
+  };
+
+  const stop = () => {
+    if (conversationId) stopReply(conversationId);
+  };
+
+  const regenerate = (messageId: string) => {
+    if (conversationId) void regenerateReply(conversationId, messageId);
   };
 
   const handleComposerLayout = (event: LayoutChangeEvent) => {
@@ -48,7 +60,9 @@ export function ChatView({ initialMessages }: ChatViewProps) {
 
   return (
     <View style={styles.container}>
-      {messages.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.container} />
+      ) : messages.length === 0 ? (
         <Animated.View style={[styles.container, emptyStateStyle]}>
           <EmptyChat />
         </Animated.View>
@@ -58,7 +72,9 @@ export function ChatView({ initialMessages }: ChatViewProps) {
           messages={messages}
           composerHeight={composerHeight}
           onEndVisibleChange={setIsEndVisible}
-          isSentInSession={isSentInSession}
+          isSentInSession={wasSentInSession}
+          isResponding={isResponding}
+          onRegenerate={regenerate}
         />
       )}
       <KeyboardStickyView offset={{ opened: insets.bottom }} style={styles.composer}>
@@ -67,7 +83,7 @@ export function ChatView({ initialMessages }: ChatViewProps) {
         ) : null}
         <Composer
           isResponding={isResponding}
-          onSend={handleSend}
+          onSend={(text) => void handleSend(text)}
           onStop={stop}
           onLayout={handleComposerLayout}
         />

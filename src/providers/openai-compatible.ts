@@ -1,8 +1,8 @@
 import type { ChatStreamChunk, ProviderAdapter, StreamChatRequest, TokenUsage } from './adapter';
 import { defaultFetch, joinUrl, readJsonResponse, sendRequest, type FetchLike } from './http';
-import { isRecord, parseJson, readNumber, readRecord, readString, type JsonRecord } from './json';
+import { isRecord, readNumber, readRecord, readString, type JsonRecord } from './json';
 import { errorFromStreamPayload, ProviderError } from './provider-error';
-import { readSseEvents } from './sse-stream';
+import { readJsonEvents } from './sse-json';
 import type { ModelInfo } from './types';
 
 type OpenAICompatibleOptions = {
@@ -87,13 +87,13 @@ export function createOpenAICompatibleAdapter({
         .sort((a, b) => a.id.localeCompare(b.id));
     },
 
-    async *streamChat({ model, messages, temperature, maxTokens, signal }: StreamChatRequest) {
+    async *streamChat({ model, messages, signal }: StreamChatRequest) {
       const response = await sendRequest({
         fetchImpl,
         url: joinUrl(baseUrl, 'chat/completions'),
         method: 'POST',
         headers: { ...headers, Accept: 'text/event-stream' },
-        body: { model, messages, stream: true, temperature, max_tokens: maxTokens },
+        body: { model, messages, stream: true },
         signal,
       });
       if (!response.body) throw new ProviderError('invalidResponse', { status: response.status });
@@ -101,12 +101,9 @@ export function createOpenAICompatibleAdapter({
       let finishReason: string | undefined;
       let usage: TokenUsage | undefined;
 
-      for await (const event of readSseEvents(response.body, signal)) {
-        if (event.data === doneMarker) break;
-        if (!event.data.trim()) continue;
-
-        const payload = parseJson(event.data);
-        if (!isRecord(payload)) throw new ProviderError('invalidResponse');
+      for await (const payload of readJsonEvents(response.body, signal, {
+        endMarker: doneMarker,
+      })) {
         if (payload.error !== undefined) throw errorFromStreamPayload(payload.error);
 
         const delta = readDelta(payload);

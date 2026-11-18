@@ -8,6 +8,7 @@ import { AppText } from '@/components/app-text';
 import { Button } from '@/components/form/button';
 import { SegmentedControl } from '@/components/form/segmented-control';
 import { TextField } from '@/components/form/text-field';
+import { ConnectionTest, type ConnectionTestState } from '@/components/settings/connection-test';
 import {
   validateProviderDraft,
   type ProviderDraft,
@@ -21,6 +22,7 @@ type ProviderFormProps = {
   hasStoredApiKey: boolean;
   onSave: (draft: ProviderDraft, options: { removeApiKey: boolean }) => Promise<void>;
   onDelete?: () => void;
+  onTestConnection: (draft: ProviderDraft, options: { useStoredKey: boolean }) => Promise<number>;
 };
 
 export function ProviderForm({
@@ -28,6 +30,7 @@ export function ProviderForm({
   hasStoredApiKey,
   onSave,
   onDelete,
+  onTestConnection,
 }: ProviderFormProps) {
   const { t } = useTranslation();
   const { spacing } = useTheme();
@@ -38,14 +41,32 @@ export function ProviderForm({
   const [removeApiKey, setRemoveApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [testState, setTestState] = useState<ConnectionTestState>({ status: 'idle' });
+
+  const keyIsStored = hasStoredApiKey && !removeApiKey;
 
   const update = (changes: Partial<ProviderDraft>) =>
     setDraft((current) => ({ ...current, ...changes }));
 
-  const save = async () => {
+  const isValid = () => {
     const validation = validateProviderDraft(draft);
     setErrors(validation);
-    if (Object.keys(validation).length > 0) return;
+    return Object.keys(validation).length === 0;
+  };
+
+  const testConnection = async () => {
+    if (!isValid()) return;
+    setTestState({ status: 'testing' });
+    try {
+      const modelCount = await onTestConnection(draft, { useStoredKey: keyIsStored });
+      setTestState({ status: 'success', modelCount });
+    } catch (error) {
+      setTestState({ status: 'error', error });
+    }
+  };
+
+  const save = async () => {
+    if (!isValid()) return;
 
     setIsSaving(true);
     setSaveFailed(false);
@@ -56,8 +77,6 @@ export function ProviderForm({
       setIsSaving(false);
     }
   };
-
-  const keyIsStored = hasStoredApiKey && !removeApiKey;
 
   return (
     <KeyboardAwareScrollView
@@ -121,6 +140,7 @@ export function ProviderForm({
             />
           </View>
         ) : null}
+        <ConnectionTest state={testState} onTest={() => void testConnection()} />
       </View>
       {saveFailed ? (
         <AppText color="danger" accessibilityRole="alert">

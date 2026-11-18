@@ -7,6 +7,7 @@ import { makeStyles } from '@/theme';
 type DrawerRowProps = {
   label: string;
   onPress: () => void;
+  onLongPress?: () => void;
   icon?: IconName;
   emphasized?: boolean;
   active?: boolean;
@@ -15,6 +16,7 @@ type DrawerRowProps = {
 export function DrawerRow({
   label,
   onPress,
+  onLongPress,
   icon,
   emphasized = false,
   active = false,
@@ -25,6 +27,7 @@ export function DrawerRow({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [styles.row, (pressed || active) && styles.highlighted]}
     >
       {icon ? <Icon name={icon} color={emphasized ? 'textPrimary' : 'textSecondary'} /> : null}

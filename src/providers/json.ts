@@ -26,3 +26,12 @@ export function parseJson(text: string): unknown {
     return undefined;
   }
 }
+
+export function readPath(record: JsonRecord, path: string[]): unknown {
+  let current: unknown = record;
+  for (const key of path) {
+    if (!isRecord(current)) return undefined;
+    current = current[key];
+  }
+  return current;
+}

@@ -6,6 +6,7 @@ import { ProviderForm } from '@/components/settings/provider-form';
 import { deleteProvider, saveProvider } from '@/providers/provider-actions';
 import { draftFromPreset, type ProviderDraft } from '@/providers/provider-draft';
 import { findPreset } from '@/providers/presets';
+import { testProviderConnection } from '@/providers/test-connection';
 import { useProviderStore } from '@/store/provider-store';
 
 export default function ProviderFormScreen() {
@@ -57,6 +58,12 @@ export default function ProviderFormScreen() {
         hasStoredApiKey={existing?.hasApiKey ?? false}
         onSave={save}
         onDelete={existing ? confirmDelete : undefined}
+        onTestConnection={(draft, { useStoredKey }) =>
+          testProviderConnection({
+            draft,
+            storedKeyProviderId: useStoredKey ? existing?.id : undefined,
+          })
+        }
       />
     </>
   );

@@ -136,3 +136,57 @@
 **Testen**
 
 - `npm test`: SSE-Parser (u. a. jede Trennstelle eines Streams, Zeichen für Zeichen, `\r\n` über Chunk-Grenzen), UTF-8 über Chunk-Grenzen, Fehler-Mapping und Meldungen, Adapter gegen ein simuliertes `fetch` (Modelle, Streaming mit Reasoning, Usage, Fehler im Stream, 401/429, Netzwerk, Abbruch)
+
+## Schritt 8: Adapter an die UI angeschlossen
+
+**Neu**
+
+- „Key testen“ im Anbieter-Formular: ruft `listModels` mit den aktuellen Formularwerten auf (auch vor dem Sichern; leeres Key-Feld nutzt den gespeicherten Key) und zeigt „Verbunden, N Modelle gefunden“ oder die Fehlermeldung.
+- Modell-Picker mit echten Daten: TanStack Query lädt die Modelle aller Anbieter, erst wenn der Picker geöffnet wird. Je Anbieter Lade- und Fehlerzeile mit „Erneut versuchen“, Stern für Favoriten (oben gesammelt), „Modell-ID hinzufügen“ für manuelle Modelle, Hinweis mit Link zu den Einstellungen, wenn noch kein Anbieter existiert. Dummy-Modelle entfernt.
+- Chat streamt echt (`useChatSession` → `streamReply` → Adapter). Tokens werden alle 50 ms gebündelt. Stop bricht per `AbortController` ab und behält den bisherigen Text. „Neu generieren“ entfernt die Antwort samt allem danach und fragt mit dem aktuellen Modell neu.
+- Fehler erscheinen als Hinweis unter der Antwort (Meldung, Detail des Anbieters, „Erneut versuchen“). Ohne gewähltes Modell: „Wähle oben zuerst ein Modell aus.“
+- Reasoning als einklappbarer Block über der Antwort („Denkt nach …“ bis die Antwort beginnt, dann „Gedankengang“).
+- Anthropic-Anbieter melden „noch nicht unterstützt“, der Adapter folgt.
+- Alles Neue liegt nur im Speicher (Modelllisten, Favoriten, manuelle Modelle, Auswahl, Chats). Die Anbieter-Config bleibt wie bisher gespeichert. Die Chatliste im Drawer und die Beispiel-Unterhaltung sind noch Dummy-Daten.
+
+**Testen**
+
+- Einstellungen → Anbieter → Anbieter mit echtem Key anlegen → „Key testen“
+- Im Chat oben auf „Modell wählen“: Modelle erscheinen, Stern setzen, eigene Modell-ID hinzufügen, Modell wählen
+- Nachricht senden: Antwort streamt, Stop bricht ab, „Neu generieren“ fragt erneut. Mit falschem Key: Fehlerhinweis mit „Erneut versuchen“. Mit DeepSeek Reasoner o. Ä.: Reasoning-Block erscheint.
+- `npm test`: Sektionen des Pickers, Picker mit Laden/Fehler/Retry/Favoriten/manuellen Modellen, Chat-Session (Streaming, Stop, Fehler + Retry, Neu generieren, fehlendes Modell), Antwort-Darstellung, Key-Test im Formular, Verbindungstest
+
+## Schritt 9: Anthropic-Adapter
+
+**Neu**
+
+- `src/providers/anthropic.ts`: `listModels` über `GET /models` (mit Paginierung, liest Anzeigename, Kontext, maximale Ausgabe und ob adaptives Thinking unterstützt wird), `streamChat` über `POST /messages` mit `x-api-key`, `anthropic-version: 2023-06-01`, `system` als eigenem Feld und eigenem Event-Parsing (`thinking_delta` → Reasoning, `text_delta` → Text, Signaturen/Tool-Input/`ping` ignoriert, `message_delta` → Abbruchgrund und Usage, `error`-Events gemappt).
+- `max_tokens` aus der Modellliste (max. 64 000, sonst 8 192). Thinking nur für Modelle, die adaptives Thinking melden, mit `display: 'summarized'`, damit der Gedankengang sichtbar ist.
+- `StreamChatRequest` trägt jetzt die `modelInfo` des Modells (aus dem Query-Cache), `temperature`/`maxTokens` entfallen. Gemeinsamer Helfer `readJsonEvents` für beide Adapter.
+- Fehler-Mapping erweitert um Anthropics Fehlertypen in Stream-Events und `billing_error`. Der Hinweis „Anthropic noch nicht unterstützt“ ist entfernt: Claude-Modelle laufen jetzt wie alle anderen (Key testen, Picker, Streaming, Stop, Neu generieren, Reasoning-Block).
+- SPEC Abschnitt 3 ergänzt (3.3 Anthropic).
+
+**Testen**
+
+- Einstellungen → Anbieter → Vorlage „Anthropic“ mit Key → „Key testen“. Im Picker erscheinen die Claude-Modelle mit Namen. Modell wählen und schreiben: Antwort streamt, bei Modellen mit Thinking erscheint der Gedankengang.
+- `npm test`: Event-Parsing (Text, Thinking, Signaturen, Ping, Usage, Fehler-Events je Typ), System-Feld, Request-Body je nach Modellfähigkeit, HTTP-Fehler mit Anthropic-Fehlerformat (401, 429, 529, Billing), Netzwerk/Abbruch, Paginierung der Modelle, Weitergabe der `modelInfo` im Chat
+
+## Schritt 10: SQLite, echte Chats im Drawer
+
+**Neu**
+
+- `src/db`: `expo-sqlite` mit Migrationen über `PRAGMA user_version`. Tabellen `conversations` und `messages` mit `id` (PocketBase-Format), `created`, `updated`, `sync_status`. Felder in `docs/SPEC.md` Abschnitt 4 (dort neu festgelegt).
+- Repository-Funktionen (`conversations-repository.ts`, `messages-repository.ts`) plus TanStack-Query-Hooks (`queries.ts`). Die UI liest nur aus SQLite; Schreibende invalidieren die Abfragen.
+- Chat-Engine (`src/components/chat/chat-engine.ts`): Senden, Streamen (alle ~120 ms in die Datenbank), Stop, Neu generieren. Läuft außerhalb von React, eine Antwort streamt also weiter, wenn man den Chat wechselt. Nach einem Neustart werden hängende Antworten als „gestoppt“ markiert.
+- Titel: zuerst der Anfang der ersten Nachricht, nach der ersten Antwort ein kurzer Extra-Aufruf an das aktuelle Modell. Umbenannte Titel werden nie überschrieben.
+- Drawer mit echten Chats: „Angepinnt“ oben, dann nach Datum. Suche (Titel und Nachrichteninhalt, 200 ms verzögert). Long-Press: Umbenennen, Anpinnen, Archivieren, Löschen mit Bestätigung. Einstellungen → Archiv zeigt archivierte Chats (dort „Wiederherstellen“).
+- Alle Dummy-Daten entfernt (Chatliste, Beispiel-Unterhaltung). Neue Chats starten auf `/` und wechseln nach der ersten Nachricht zu `/chat/[id]`.
+- Tests laufen gegen echtes SQLite (`node:sqlite`, Adapter in `test-utils/`).
+
+**Testen**
+
+- Neuen Chat starten, Nachricht senden: Chat erscheint im Drawer unter „Heute“, nach der Antwort mit generiertem Titel. App beenden und neu öffnen: Chats und Nachrichten sind noch da.
+- Long-Press auf einen Chat: umbenennen, anpinnen (wandert nach oben), archivieren (verschwindet, unter Einstellungen → Archiv wiederherstellbar), löschen.
+- Suche im Drawer nach einem Wort aus einer Antwort.
+- Während eine Antwort streamt, in einen anderen Chat wechseln und zurück: Die Antwort ist weitergelaufen.
+- `npm test`: Schema, Migration, Neustart-Bereinigung, Sortierung, Suche (inkl. `%`/`_`), Titel-Schutz, Kaskaden-Löschen, Nachrichtenreihenfolge, Engine (Senden, Verlauf, Stop, Fehler + Neu generieren, fehlendes Modell, Titel), Titel-Bereinigung, Drawer-Liste und Aktionsmenü

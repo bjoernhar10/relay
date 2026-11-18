@@ -1,18 +1,41 @@
-export type AssistantMessageStatus = 'streaming' | 'complete';
+import type { StoredMessage } from '@/db/types';
+import { ProviderError, type ProviderErrorKind } from '@/providers/provider-error';
 
-export type ChatMessage =
-  | { id: string; role: 'user'; content: string }
-  | {
-      id: string;
-      role: 'assistant';
-      content: string;
-      modelLabel: string;
-      status: AssistantMessageStatus;
-    };
+import { MissingModelError } from './missing-model-error';
 
-let messageCounter = 0;
+export type AssistantMessageStatus = StoredMessage['status'];
 
-export function createMessageId(): string {
-  messageCounter += 1;
-  return `${Date.now().toString(36)}-${messageCounter}`;
+export type UserChatMessage = { id: string; role: 'user'; content: string };
+
+export type AssistantChatMessage = {
+  id: string;
+  role: 'assistant';
+  content: string;
+  reasoning: string;
+  modelLabel: string;
+  status: AssistantMessageStatus;
+  error?: unknown;
+};
+
+export type ChatMessage = UserChatMessage | AssistantChatMessage;
+
+export const missingModelErrorKind = 'missingModel';
+
+function restoreError({ errorKind, errorDetail }: StoredMessage): unknown {
+  if (!errorKind) return undefined;
+  if (errorKind === missingModelErrorKind) return new MissingModelError();
+  return new ProviderError(errorKind as ProviderErrorKind, { detail: errorDetail ?? undefined });
+}
+
+export function toChatMessage(message: StoredMessage): ChatMessage {
+  if (message.role === 'user') return { id: message.id, role: 'user', content: message.content };
+  return {
+    id: message.id,
+    role: 'assistant',
+    content: message.content,
+    reasoning: message.reasoning,
+    modelLabel: message.modelLabel ?? '',
+    status: message.status,
+    error: restoreError(message),
+  };
 }

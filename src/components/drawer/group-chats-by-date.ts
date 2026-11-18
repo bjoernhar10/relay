@@ -1,6 +1,6 @@
 import type { ChatSummary } from './chat-summary';
 
-export const chatGroups = ['today', 'yesterday', 'last7Days', 'older'] as const;
+export const chatGroups = ['pinned', 'today', 'yesterday', 'last7Days', 'older'] as const;
 export type ChatGroup = (typeof chatGroups)[number];
 
 export type ChatSection = {
@@ -20,7 +20,9 @@ function startOfDay(date: Date): Date {
   return result;
 }
 
-function groupFor(updatedAt: Date, now: Date): ChatGroup {
+function groupFor(chat: ChatSummary, now: Date): ChatGroup {
+  if (chat.pinned) return 'pinned';
+  const updatedAt = new Date(chat.updated);
   const today = startOfDay(now);
   if (updatedAt >= today) return 'today';
   if (updatedAt >= daysBefore(today, 1)) return 'yesterday';
@@ -29,11 +31,11 @@ function groupFor(updatedAt: Date, now: Date): ChatGroup {
 }
 
 export function groupChatsByDate(chats: ChatSummary[], now: Date): ChatSection[] {
-  const newestFirst = [...chats].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const newestFirst = [...chats].sort((a, b) => b.updated.localeCompare(a.updated));
   return chatGroups
     .map((group) => ({
       group,
-      data: newestFirst.filter((chat) => groupFor(chat.updatedAt, now) === group),
+      data: newestFirst.filter((chat) => groupFor(chat, now) === group),
     }))
     .filter((section) => section.data.length > 0);
 }

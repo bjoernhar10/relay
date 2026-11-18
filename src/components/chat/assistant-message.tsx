@@ -3,29 +3,43 @@ import { View } from 'react-native';
 import { Markdown } from '@/components/markdown/markdown';
 import { makeStyles } from '@/theme';
 
+import type { AssistantChatMessage } from './chat-message';
+import { ErrorNotice } from './error-notice';
 import { MessageActions } from './message-actions';
+import { ReasoningBlock } from './reasoning-block';
 import { StreamingIndicator } from './streaming-indicator';
 
 type AssistantMessageProps = {
-  content: string;
-  modelLabel: string;
-  isStreaming?: boolean;
+  message: Pick<AssistantChatMessage, 'content' | 'reasoning' | 'modelLabel' | 'status' | 'error'>;
+  canRegenerate?: boolean;
+  onRegenerate?: () => void;
 };
 
 export function AssistantMessage({
-  content,
-  modelLabel,
-  isStreaming = false,
+  message,
+  canRegenerate = true,
+  onRegenerate,
 }: AssistantMessageProps) {
   const styles = useStyles();
+  const { content, reasoning, modelLabel, status, error } = message;
+  const isStreaming = status === 'streaming';
+
   return (
     <View style={styles.container}>
+      {reasoning ? (
+        <ReasoningBlock reasoning={reasoning} isThinking={isStreaming && !content} />
+      ) : null}
       {content ? <Markdown content={content} /> : null}
-      {isStreaming ? (
-        <StreamingIndicator />
-      ) : (
-        <MessageActions content={content} modelLabel={modelLabel} />
-      )}
+      {isStreaming && !content && !reasoning ? <StreamingIndicator /> : null}
+      {status === 'error' ? <ErrorNotice error={error} onRetry={onRegenerate} /> : null}
+      {status === 'complete' || status === 'stopped' ? (
+        <MessageActions
+          content={content}
+          modelLabel={modelLabel}
+          canRegenerate={canRegenerate}
+          onRegenerate={onRegenerate}
+        />
+      ) : null}
     </View>
   );
 }

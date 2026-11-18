@@ -9,9 +9,16 @@ import { makeStyles } from '@/theme';
 type MessageActionsProps = {
   content: string;
   modelLabel: string;
+  canRegenerate?: boolean;
+  onRegenerate?: () => void;
 };
 
-export function MessageActions({ content, modelLabel }: MessageActionsProps) {
+export function MessageActions({
+  content,
+  modelLabel,
+  canRegenerate = true,
+  onRegenerate,
+}: MessageActionsProps) {
   const { t } = useTranslation();
   const styles = useStyles();
   const { copied, copy } = useCopyToClipboard();
@@ -28,8 +35,9 @@ export function MessageActions({ content, modelLabel }: MessageActionsProps) {
       <IconButton
         icon="regenerate"
         accessibilityLabel={t('chat.regenerate')}
+        onPress={canRegenerate ? onRegenerate : undefined}
         size="sm"
-        color="textSecondary"
+        color={canRegenerate ? 'textSecondary' : 'textTertiary'}
       />
       <AppText variant="caption" color="textTertiary" numberOfLines={1} style={styles.modelLabel}>
         {modelLabel}

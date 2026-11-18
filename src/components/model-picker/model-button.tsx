@@ -5,16 +5,16 @@ import { Keyboard, Pressable } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Icon } from '@/components/icon';
+import { useModelStore } from '@/store/model-store';
 import { makeStyles } from '@/theme';
 
 import { ModelPickerSheet } from './model-picker-sheet';
-import { useSelectedModelLabel } from './selected-model-label';
 
 export function ModelButton() {
   const { t } = useTranslation();
   const styles = useStyles();
   const sheetRef = useRef<BottomSheetModal>(null);
-  const modelLabel = useSelectedModelLabel();
+  const modelLabel = useModelStore((state) => state.selected?.label);
 
   const openPicker = () => {
     Keyboard.dismiss();
@@ -29,8 +29,8 @@ export function ModelButton() {
         onPress={openPicker}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        <AppText variant="bodyStrong" numberOfLines={1}>
-          {modelLabel}
+        <AppText variant="bodyStrong" numberOfLines={1} style={styles.label}>
+          {modelLabel ?? t('chat.chooseModel')}
         </AppText>
         <Icon name="chevronDown" size="sm" />
       </Pressable>
@@ -50,5 +50,8 @@ const useStyles = makeStyles(({ colors, spacing, radii, sizes }) => ({
   },
   pressed: {
     backgroundColor: colors.surfacePressed,
+  },
+  label: {
+    flexShrink: 1,
   },
 }));

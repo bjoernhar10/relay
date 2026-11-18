@@ -83,7 +83,7 @@ Hinweise für Nutzer, die eine andere Variante brauchen (als eigener Anbieter od
 - GLM mit Konto in Festlandchina: `https://open.bigmodel.cn/api/paas/v4`
 - GLM Coding Plan: `https://api.z.ai/api/coding/paas/v4`
 - DeepSeek, Kimi und Z.ai bieten zusätzlich Anthropic-kompatible Endpunkte an. Relay nutzt bei Presets den OpenAI-kompatiblen.
-- Anthropic führt mit `2026-10-21` eine neue API-Version ein. Der Adapter setzt den Header `anthropic-version` zentral, siehe Abschnitt 3.
+- Anthropic bietet neben `2023-06-01` die API-Version `2026-10-21` an. Relay sendet `2023-06-01`, siehe Abschnitt 3.3.
 
 ### 2.5 Speicherung
 
@@ -104,11 +104,14 @@ Hinweise für Nutzer, die eine andere Variante brauchen (als eigener Anbieter od
 - Löschen mit Bestätigung.
 - In diesem Schritt finden keine API-Aufrufe statt, also auch kein Verbindungstest.
 
-### 2.7 Modelle (folgt)
+### 2.7 Modelle
 
-- Die Modellliste eines Anbieters wird über `GET {baseUrl}/models` geladen und in SQLite zwischengespeichert (`source: 'api'`).
+- Die Modellliste eines Anbieters wird über `GET {baseUrl}/models` geladen (TanStack Query, `source: 'api'`). Sie wird neu geladen, sobald sich URL, Protokoll oder Key des Anbieters ändern.
 - Nutzer können Modell-IDs zusätzlich manuell eintragen (`source: 'manual'`), etwa wenn ein Anbieter keine Liste liefert.
-- Favoriten werden pro Modell (`providerId` + `id`) gespeichert und speisen den Modell-Picker.
+- Favoriten werden pro Modell (`providerId` + `id`) gemerkt und erscheinen oben im Modell-Picker.
+- Ein Modell wird über `providerId` + `id` referenziert. Wird ein Anbieter gelöscht, verschwinden seine Favoriten, manuellen Modelle und eine Auswahl auf ihn.
+- Vorerst liegen Modelllisten, Favoriten, manuelle Modelle und Auswahl nur im Speicher. Mit dem SQLite-Schritt werden sie lokal gespeichert.
+- „Key testen“ im Anbieter-Formular ruft `listModels` mit den aktuellen Formularwerten auf, also auch vor dem Sichern.
 
 ## 3. Provider-Adapter
 
@@ -120,8 +123,7 @@ type ChatRequestMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 type StreamChatRequest = {
   model: string;
   messages: ChatRequestMessage[];
-  temperature?: number;
-  maxTokens?: number;
+  modelInfo?: ModelInfo;   // aus der geladenen Modellliste, falls bekannt
   signal?: AbortSignal;
 };
 
@@ -139,6 +141,8 @@ interface ProviderAdapter {
 - `streamChat` liefert die Chunks in Eingangsreihenfolge und endet mit genau einem `done`.
 - Fehler werden als `ProviderError` geworfen, auch der Abbruch über das Signal (`kind: 'aborted'`).
 - Requests laufen über `expo/fetch`, weil nur dieses auf iOS und Android Antworten tatsächlich streamt.
+- Sampling-Parameter (`temperature` usw.) gibt es bewusst nicht: Anthropics API-Version `2026-10-21` lehnt sie ab, und Relay braucht sie nicht.
+- `ModelInfo` enthält zusätzlich `maxOutputTokens` und `supportsAdaptiveThinking`, sofern der Anbieter sie liefert (Anthropic `/v1/models`). Der Chat gibt die `ModelInfo` des gewählten Modells aus dem Query-Cache an den Adapter.
 
 ### 3.2 OpenAI-kompatibel
 
@@ -147,7 +151,17 @@ interface ProviderAdapter {
 - `data: [DONE]` beendet den Stream. Endet die Verbindung ohne `[DONE]`, gilt die Antwort trotzdem als fertig.
 - Fehler innerhalb des Streams (`data: {"error": …}`) werden als `ProviderError` geworfen.
 
-### 3.3 SSE
+### 3.3 Anthropic
+
+- Header: `x-api-key`, `anthropic-version: 2023-06-01`. Diese Version akzeptiert Anthropic weiterhin, und Anthropic-kompatible Endpunkte (DeepSeek, Kimi, Z.ai) erwarten sie. `2026-10-21` würde nur Felder verbieten, die Relay nicht sendet. Die Konstante steht zentral in `src/providers/anthropic.ts`.
+- `listModels`: `GET {baseUrl}/models?limit=1000`, folgt `has_more`/`last_id`. Liest `display_name`, `max_input_tokens`, `max_tokens` und `capabilities.thinking.types.adaptive.supported`. Reihenfolge wie geliefert (neueste zuerst).
+- `streamChat`: `POST {baseUrl}/messages` mit `stream: true`
+  - System-Nachrichten werden zu einem eigenen `system`-Feld zusammengefasst, das Gespräch beginnt immer mit einer Nutzer-Nachricht.
+  - `max_tokens` ist Pflicht: die vom Modell gemeldete Obergrenze, höchstens 64 000; unbekannte Modelle bekommen 8 192.
+  - `thinking: { type: 'adaptive', display: 'summarized' }` nur, wenn das Modell adaptives Thinking meldet. Ältere Modelle lehnen den Parameter ab, und aktuelle liefern ohne `display: 'summarized'` leeren Thinking-Text.
+- Events: `content_block_delta` mit `text_delta` wird zu Text, `thinking_delta` zu Reasoning. `signature_delta`, `input_json_delta`, `citations_delta`, `redacted_thinking`, `ping` und unbekannte Event-Typen werden ignoriert. `message_start` liefert die Eingabe-Tokens, `message_delta` Abbruchgrund und Ausgabe-Tokens, `message_stop` beendet den Stream. Ein `error`-Event wird über `error.type` gemappt (z. B. `overloaded_error` → `server`).
+
+### 3.4 SSE
 
 Eigener Parser nach dem WHATWG-Format:
 - Zeilenenden `\n`, `\r\n` und `\r`, auch über Chunk-Grenzen hinweg
@@ -157,28 +171,71 @@ Eigener Parser nach dem WHATWG-Format:
 
 Bytes werden mit `TextDecoder` im Stream-Modus dekodiert, damit Mehrbyte-Zeichen über Chunk-Grenzen heil bleiben.
 
-### 3.4 Fehler
+### 3.5 Fehler
 
 | Ursache | `kind` | Meldung (Kurzform) |
 | --- | --- | --- |
 | HTTP 401 | `invalidApiKey` | Key abgelehnt, in den Einstellungen prüfen |
-| HTTP 402, `insufficient_quota` | `quotaExceeded` | Guthaben oder Kontingent aufgebraucht |
+| HTTP 402, `insufficient_quota`, `billing_error` | `quotaExceeded` | Guthaben oder Kontingent aufgebraucht |
 | HTTP 403 | `forbidden` | Kein Zugriff auf Modell oder Funktion |
 | HTTP 404 | `notFound` | Modell oder Endpunkt nicht gefunden |
 | HTTP 429 | `rateLimited` | Zu viele Anfragen, mit Wartezeit aus `Retry-After` |
 | HTTP 400, 413, 422 | `badRequest` | Anfrage abgelehnt |
-| HTTP 5xx, Fehler im Stream | `server` | Fehler beim Anbieter |
+| HTTP 5xx (auch Anthropics 529), Fehler im Stream | `server` | Fehler beim Anbieter |
 | Verbindung fehlgeschlagen | `network` | Keine Verbindung, Internet und Base-URL prüfen |
 | Signal ausgelöst | `aborted` | Abgebrochen |
 | Antwort nicht lesbar | `invalidResponse` | Unerwartete Antwort |
 
-Die Meldung des Anbieters wird gekürzt als `detail` mitgegeben. Gemeinsame Bausteine (HTTP, JSON-Lesen, SSE, Fehler) liegen in eigenen Modulen und werden auch vom Anthropic-Adapter genutzt.
+Fehler-Events im Stream werden über ihren Typ zugeordnet (`authentication_error`, `rate_limit_error`, `invalid_request_error`, …), sonst gelten sie als `server`. Die Meldung des Anbieters wird gekürzt als `detail` mitgegeben. Gemeinsame Bausteine (HTTP, JSON-Lesen, SSE-Events als JSON, Fehler) liegen in eigenen Modulen und werden von beiden Adaptern genutzt.
 
-## 4. Datenhaltung und Sync (folgt)
+## 4. Datenhaltung und Sync
 
-- Lokale SQLite-Datenbank mit Chats, Nachrichten, Modellen und Gedächtnis. Die UI liest nur von dort.
+### 4.1 Lokale Datenbank
+
+`expo-sqlite`, Datei `relay.db`, WAL und Fremdschlüssel aktiv. Migrationen zählen `PRAGMA user_version` hoch, ausgelieferte Migrationen werden nie geändert.
+
+**conversations**
+
+| Feld | Typ | Bedeutung |
+| --- | --- | --- |
+| `id` | TEXT PK | 15 Zeichen `a-z0-9`, Format wie PocketBase-IDs |
+| `title` | TEXT | Anzeigetitel |
+| `title_source` | TEXT | `provisional` (Anfang der ersten Nachricht), `generated` (vom Modell), `user` (umbenannt) |
+| `pinned`, `archived` | INTEGER 0/1 | Anpinnen, Archivieren |
+| `provider_id`, `model_id` | TEXT | zuletzt genutztes Modell |
+| `created`, `updated` | TEXT | ISO 8601, UTC |
+| `sync_status` | TEXT | `pending` (lokal geändert) oder `synced` |
+
+**messages**
+
+| Feld | Typ | Bedeutung |
+| --- | --- | --- |
+| `id` | TEXT PK | wie oben |
+| `conversation_id` | TEXT FK | `ON DELETE CASCADE` |
+| `role` | TEXT | `user` oder `assistant` |
+| `content`, `reasoning` | TEXT | Antworttext und Gedankengang |
+| `status` | TEXT | `streaming`, `complete`, `stopped`, `error` |
+| `model_label` | TEXT | angezeigter Modellname der Antwort |
+| `error_kind`, `error_detail` | TEXT | `ProviderError.kind` bzw. `missingModel` und Meldung des Anbieters |
+| `created`, `updated`, `sync_status` | | wie oben |
+
+- Reihenfolge der Nachrichten: `created`, bei Gleichstand Einfügereihenfolge.
+- Jede Änderung setzt `updated` und `sync_status = 'pending'`.
+- Löschen ist vorerst endgültig. Für den Sync kommen Löschmarkierungen dazu.
+- Beim Start werden Antworten mit Status `streaming` auf `stopped` gesetzt, weil sie nach einem Neustart nicht mehr laufen können.
+
+### 4.2 Lesen und Schreiben
+
+- Die UI liest ausschließlich aus SQLite, über TanStack-Query-Hooks (`src/db/queries.ts`). Schreibende Funktionen invalidieren die betroffenen Abfragen.
+- Antworten werden auch während des Streamings in die Datenbank geschrieben, gebündelt etwa alle 120 ms.
+- Die Chat-Engine (`src/components/chat/chat-engine.ts`) läuft außerhalb von React. Eine Antwort streamt also weiter, wenn der Nutzer den Chat wechselt.
+- Titel: Ein neuer Chat bekommt zuerst den Anfang der ersten Nachricht. Nach der ersten vollständigen Antwort erzeugt ein kurzer Extra-Aufruf an das aktuelle Modell einen Titel mit höchstens sechs Wörtern in der Sprache des Gesprächs. Ein vom Nutzer gesetzter Titel wird nie überschrieben.
+- Suche im Drawer: Titel und Nachrichteninhalt per `LIKE`. Groß- und Kleinschreibung wird dabei nur für ASCII ignoriert; Umlaute müssen exakt passen. Eine Volltextsuche (FTS5) wäre die spätere Verbesserung.
+
+### 4.3 Sync (folgt)
+
 - PocketBase auf einem Raspberry Pi 5 (arm64), Setup in `backend/`.
-- Sync im Hintergrund, Konflikte nach „letzte Änderung gewinnt“ pro Datensatz.
+- Sync im Hintergrund über `sync_status`, Konflikte nach „letzte Änderung gewinnt“ pro Datensatz.
 
 ## 5. Chat-Screen
 
@@ -189,6 +246,7 @@ Umgesetzt in den Schritten 3 bis 5:
 - Markdown mit Codeblöcken (Highlighting, Kopieren) und Tabellen
 - Unter jeder Antwort: Kopieren, Neu generieren, Modellname
 - Leerer Zustand mit Begrüßung und vier Vorschlägen
+- Drawer: Chats aus SQLite, oben „Angepinnt“, dann nach Datum gruppiert. Long-Press öffnet ein Menü mit Umbenennen, Anpinnen, Archivieren und Löschen (mit Bestätigung). Archivierte Chats liegen unter Einstellungen → Archiv.
 - Composer mit wachsendem Feld, „+“-Sheet, Senden bzw. Stop, Haptics, Keyboard-Handling
 
 ## 6. Gedächtnis (folgt)

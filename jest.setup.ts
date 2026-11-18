@@ -37,6 +37,10 @@ jest.mock('expo-sqlite/kv-store', () => {
   };
 });
 
+jest.mock('expo-crypto', () => ({
+  getRandomValues: (array: Uint8Array<ArrayBuffer>) => globalThis.crypto.getRandomValues(array),
+}));
+
 jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
 jest.mock('react-native-keyboard-controller', () =>
   jest.requireActual('react-native-keyboard-controller/jest'),

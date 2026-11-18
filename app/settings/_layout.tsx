@@ -23,6 +23,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="providers/index" options={{ title: t('providers.title') }} />
       <Stack.Screen name="providers/new" options={{ title: t('providers.chooseTitle') }} />
       <Stack.Screen name="providers/form" />
+      <Stack.Screen name="archive" options={{ title: t('archive.title') }} />
     </Stack>
   );
 }

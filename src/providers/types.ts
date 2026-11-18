@@ -26,5 +26,8 @@ export type ModelInfo = {
   providerId: string;
   displayName?: string;
   contextWindow?: number;
+  // Reported by providers that describe their models in detail (Anthropic's /v1/models).
+  maxOutputTokens?: number;
+  supportsAdaptiveThinking?: boolean;
   source: 'api' | 'manual';
 };

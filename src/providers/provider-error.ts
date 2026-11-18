@@ -59,8 +59,23 @@ export function readErrorBody(body: unknown): ProviderErrorBody {
   };
 }
 
+const exhaustedCreditCodes = new Set(['insufficient_quota', 'billing_error']);
+
+// Error types sent inside a stream, where there is no HTTP status to go by.
+// Covers OpenAI's codes and Anthropic's `error.type` values.
+const streamErrorKinds: Record<string, ProviderErrorKind> = {
+  insufficient_quota: 'quotaExceeded',
+  billing_error: 'quotaExceeded',
+  authentication_error: 'invalidApiKey',
+  permission_error: 'forbidden',
+  not_found_error: 'notFound',
+  rate_limit_error: 'rateLimited',
+  invalid_request_error: 'badRequest',
+  request_too_large: 'badRequest',
+};
+
 function kindForStatus(status: number, code: string | undefined): ProviderErrorKind {
-  if (code === 'insufficient_quota') return 'quotaExceeded';
+  if (code && exhaustedCreditCodes.has(code)) return 'quotaExceeded';
   if (status === 401) return 'invalidApiKey';
   if (status === 402) return 'quotaExceeded';
   if (status === 403) return 'forbidden';
@@ -93,11 +108,10 @@ export function errorFromHttpResponse(
   });
 }
 
-// Errors inside an otherwise successful stream arrive as { error: { message, code } } events.
+// Errors inside an otherwise successful stream arrive as { error: { message, code | type } }.
 export function errorFromStreamPayload(error: unknown): ProviderError {
   const { message, code } = readErrorBody({ error });
-  const kind = code === 'insufficient_quota' ? 'quotaExceeded' : 'server';
-  return new ProviderError(kind, { detail: message });
+  return new ProviderError((code && streamErrorKinds[code]) || 'server', { detail: message });
 }
 
 export function errorFromRequestFailure(error: unknown, signal?: AbortSignal): ProviderError {
